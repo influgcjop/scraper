@@ -1,0 +1,17 @@
+{
+  "name": "ve-creators",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "discover": "node scripts/discover.mjs",
+    "enrich": "node scripts/enrich.mjs",
+    "add-creator": "bash scripts/add-creator.sh",
+    "add-creators-batch": "bash scripts/add-creators-batch.sh"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "apify-client": "^2.9.0",
+    "dotenv": "^16.4.5"
+  }
+}
