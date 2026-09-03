@@ -34,6 +34,9 @@ en una lista — listos para las primeras campañas.
     seguidores (+30 % de seguidores en una semana con engagement cayendo).
   - `creator.niche`: un solo valor (catálogo fijo en el `check` de la
     columna), lo asigna `claude -p` igual que `city`.
+  - `company`: marcas/negocios (no creadores) — para saber a quién
+    contactar. Sin `account_snapshot` propio, solo la foto actual
+    (seguidores, tipo de negocio); no interesa su historial de engagement.
 - **Apify** — `apify/instagram-profile-scraper` (perfil + posts) y
   `clockworks/tiktok-scraper` para enriquecer; `apify/instagram-scraper`
   para minar hashtags/marcas en `discover.mjs`.
@@ -44,6 +47,8 @@ en una lista — listos para las primeras campañas.
   creadores a cargar (curada a mano desde `discover.mjs` u otras fuentes) y
   el runner que los procesa uno por uno con `enrich.mjs`, con un resumen al
   final de qué salió bien y qué necesita revisión.
+- **`scripts/companies.csv` + `scripts/add-companies.mjs`** — igual pero
+  para marcas: solo Instagram, sin métricas de engagement.
 
 ## Requisitos
 
@@ -96,16 +101,26 @@ solo (Fuente 5 del README) y no hace falta esta sintaxis.
 ```bash
 npm run discover -- brand   restaurante_a restaurante_b tienda_c
 npm run discover -- hashtag ccsfoodies caracasfood
+npm run discover -- creator sofiaccs   # espejo de "brand": marcas que ESE creador ya etiquetó
 ```
 
 Solo imprime en la terminal los usernames encontrados, con cuántas veces
 apareció cada uno (`hits`) y de dónde salió — no llama a `enrich.mjs` ni
 toca Supabase. Es una lista para revisar a mano, no una carga automática.
+`creator` mina en la dirección contraria a `brand`: en vez de "quién
+etiquetó a esta marca", busca "a qué marcas etiquetó este creador" —
+útil para encontrar negocios con quién ya colabora, y agregarlos a
+`company` con `discover -- creator` → `scripts/companies.csv` →
+`npm run add-companies`.
 
 ### Cargar creadores en lote
 
-Copia los usernames que valgan la pena (de `discover.mjs`, de una lista de
-agencia, de donde sea) a `scripts/creators.csv`:
+**¿Quieres agregar creadores?** Pon sus usernames en `scripts/creators.csv`
+(columnas `instagram,tiktok` — cualquiera puede ir vacía) y corre:
+
+```bash
+npm run add-creators-batch
+```
 
 ```csv
 instagram,tiktok
@@ -114,18 +129,36 @@ juanfoodie,
 ,solo_tiene_tiktok
 ```
 
-Cualquiera de las dos columnas puede ir vacía. Después:
-
-```bash
-npm run add-creators-batch
-```
-
 Procesa fila por fila con `enrich.mjs` (vinculando IG+TikTok del mismo
 creador aunque el username no coincida) y termina con un resumen: cuántos
 salieron bien, y para cada uno con problemas, qué pasó exactamente —
 perfil no encontrado, fallo guardando en Supabase, ciudad/nicho en `null`,
 etc. Para cargar un creador suelto sin editar el CSV, `npm run add-creator`
 hace las mismas preguntas de forma interactiva.
+
+### Cargar marcas en lote (para contactar después)
+
+**¿Quieres agregar compañías?** También con CSV, pero solo `instagram` — de
+una marca solo interesa el nombre/username para poder contactarla después,
+no hace falta trackear TikTok aparte. Ponlas en `scripts/companies.csv` y
+corre:
+
+```bash
+npm run add-companies
+```
+
+```csv
+instagram
+zaitunacafe
+tributocasadecafe
+```
+
+Guarda cada una en la tabla `company` con sus seguidores y el tipo de
+negocio (lo que la propia cuenta declara en Instagram, ej. "Coffee Shop") —
+sin engagement ni posts, esto no son creadores. Correrlo de nuevo sobre los
+mismos usernames no duplica nada, solo refresca los datos (`username` es
+único). También acepta usernames sueltos por línea de comando:
+`npm run add-companies -- zaitunacafe tributocasadecafe`.
 
 ### Revisar la calidad de una corrida
 

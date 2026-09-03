@@ -1,6 +1,12 @@
 import { askClaude, parseJsonResponse } from './claude.mjs';
 
-const VALID_CITIES = ['Caracas', 'Valencia'];
+// Las únicas dos "en alcance" para el pipeline activo hoy. Cualquier otra
+// ciudad venezolana que detectCity identifique cuenta como out-of-scope
+// (va a city_lead), no se descarta ni se fuerza a una de estas dos.
+export const IN_SCOPE_CITIES = ['Caracas', 'Valencia'];
+export function isInScopeCity(city) {
+  return !!city && IN_SCOPE_CITIES.some((c) => c.toLowerCase() === city.toLowerCase());
+}
 
 const VALID_NICHES = [
   'food', 'lifestyle', 'fitness', 'beauty', 'fashion',
@@ -16,20 +22,20 @@ const VALID_NICHES = [
 export async function detectCity({ bioText, displayName, platformCategory }) {
   if (!bioText) return null;
 
-  const prompt = `Eres un clasificador. Analiza esta bio de un perfil de Instagram/TikTok y determina si el creador vive en Caracas o en Valencia (Venezuela). Si no hay evidencia clara de ninguna de las dos ciudades, responde con city: null.
+  const prompt = `Eres un clasificador estricto. Analiza esta bio de un perfil de Instagram/TikTok y determina en qué ciudad de VENEZUELA está, basándote SOLO en evidencia real dentro de la BIO (dirección, zona/municipio, ciudad mencionada explícitamente, código +58, etc.). Puede ser cualquier ciudad venezolana, no te limites a Caracas o Valencia (ej: Maracaibo, Barquisimeto, Mérida, Morrocoy, Puerto La Cruz).
+
+IMPORTANTE: el campo Nombre NO es evidencia de ubicación — un negocio puede llamarse "Cafés Caracas" o algo similar sin estar físicamente ahí (nombres de ciudad como marca son comunes). Ignóralo para decidir, úsalo solo como contexto secundario. Si la bio menciona un lugar que NO es de Venezuela, o no hay evidencia real y verificable, responde city: null — no adivines por el nombre de la cuenta.
 
 Nombre: ${displayName ?? '(sin nombre)'}
 Categoría: ${platformCategory ?? '(sin categoría)'}
 Bio: """${bioText}"""
 
-Responde SOLO con un objeto JSON, sin texto adicional ni explicación, con este formato exacto:
-{"city": "Caracas" | "Valencia" | null, "confidence": 0.0-1.0, "evidence": "cita corta de la bio que lo justifica"}`;
+Responde SOLO con un objeto JSON, sin texto adicional ni explicación, con este formato exacto. "city" es el nombre de la ciudad venezolana tal cual se menciona/infiere (ej: "Caracas", "Maracaibo"), o null. "evidence" debe ser una cita textual de la BIO, no del nombre:
+{"city": "<ciudad>" | null, "confidence": 0.0-1.0, "evidence": "cita corta de la bio que lo justifica"}`;
 
   try {
     const raw = await askClaude(prompt);
-    const parsed = parseJsonResponse(raw);
-    if (parsed.city && !VALID_CITIES.includes(parsed.city)) parsed.city = null;
-    return parsed;
+    return parseJsonResponse(raw);
   } catch (e) {
     console.warn('  ⚠ detectCity:', e.message);
     return null;

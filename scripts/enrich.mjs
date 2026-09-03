@@ -15,7 +15,8 @@ import 'dotenv/config';
 import fs from 'node:fs/promises';
 import { ApifyClient } from 'apify-client';
 import { createClient } from '@supabase/supabase-js';
-import { detectCity, detectNiche } from './lib/classify.mjs';
+import { detectCity, detectNiche, isInScopeCity } from './lib/classify.mjs';
+import { saveCityLead } from './lib/cityLead.mjs';
 
 const apify = new ApifyClient({ token: process.env.APIFY_TOKEN });
 const db = createClient(
@@ -282,12 +283,15 @@ async function save(profile, { creatorId: forcedCreatorId } = {}) {
     displayName: profile.display_name,
     platformCategory: profile.platform_category,
   });
-  if (cityResult?.city) {
+  if (cityResult?.city && isInScopeCity(cityResult.city)) {
     await db
       .from('creator')
       .update({ city: cityResult.city, updated_at: new Date().toISOString() })
       .eq('id', creatorId);
     console.log(`  🏙 ciudad: ${cityResult.city} (confianza ${cityResult.confidence}) — "${cityResult.evidence}"`);
+  } else if (cityResult?.city) {
+    await saveCityLead(db, { kind: 'creator', platform, username, city: cityResult.city, followerCount: profile.follower_count });
+    console.log(`  🏙 ciudad: ${cityResult.city} — fuera de Caracas/Valencia, guardado en city_lead`);
   }
 
   // 1c. Nicho por claude -p, sobre bio + captions ya scrapeados. Mismo

@@ -7,7 +7,8 @@
     "discover": "node scripts/discover.mjs",
     "enrich": "node scripts/enrich.mjs",
     "add-creator": "bash scripts/add-creator.sh",
-    "add-creators-batch": "bash scripts/add-creators-batch.sh"
+    "add-creators-batch": "bash scripts/add-creators-batch.sh",
+    "add-companies": "node scripts/add-companies.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
